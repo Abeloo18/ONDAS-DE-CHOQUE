@@ -1,0 +1,118 @@
+// ✅ Software: Simulador de propagación de ondas sísmicas (espacio y tiempo)
+// Modelo: Ecuación de onda 1D usando diferencias finitas
+
+import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Line } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
+
+export default function SimuladorOnda() {
+  const [longitud, setLongitud] = useState(200);
+  const [pasoX, setPasoX] = useState(1);
+  const [pasoT, setPasoT] = useState(0.001);
+  const [velocidad, setVelocidad] = useState(300);
+  const [tiempoMax, setTiempoMax] = useState(0.2);
+  const [grafico, setGrafico] = useState(null);
+
+  const simular = () => {
+    const dx = pasoX;
+    const dt = pasoT;
+    const c = velocidad;
+    const L = longitud;
+    const T = tiempoMax;
+    const Nx = Math.floor(L / dx);
+    const Nt = Math.floor(T / dt);
+    const r = (c * dt / dx) ** 2;
+
+    let u0 = Array(Nx).fill(0);
+    let u1 = Array(Nx).fill(0);
+    let u2 = Array(Nx).fill(0);
+
+    // Condición inicial: pulso en el centro
+    const centro = Math.floor(Nx / 2);
+    u1[centro] = 100;
+
+    for (let t = 0; t < Nt; t++) {
+      for (let i = 1; i < Nx - 1; i++) {
+        u2[i] = 2 * (1 - r) * u1[i] - u0[i] + r * (u1[i - 1] + u1[i + 1]);
+      }
+      u0 = [...u1];
+      u1 = [...u2];
+    }
+
+    const labels = Array.from({ length: Nx }, (_, i) => (i * dx).toFixed(1));
+
+    setGrafico({
+      labels,
+      datasets: [
+        {
+          label: "Desplazamiento del suelo (u en mm)",
+          data: u2,
+          borderColor: "#10b981",
+          borderWidth: 2,
+          fill: false,
+        },
+      ],
+    });
+  };
+
+  return (
+    <div className="grid gap-6 p-4">
+      <Card>
+        <CardContent className="grid gap-2 p-4">
+          <h2 className="text-xl font-bold">Simulador de propagación de ondas sísmicas</h2>
+          <label>
+            Longitud del terreno (m)
+            <Input type="number" value={longitud} onChange={(e) => setLongitud(parseFloat(e.target.value))} />
+          </label>
+          <label>
+            Paso espacial dx (m)
+            <Input type="number" value={pasoX} onChange={(e) => setPasoX(parseFloat(e.target.value))} />
+          </label>
+          <label>
+            Paso temporal dt (s)
+            <Input type="number" value={pasoT} onChange={(e) => setPasoT(parseFloat(e.target.value))} />
+          </label>
+          <label>
+            Velocidad de la onda c (m/s)
+            <Input type="number" value={velocidad} onChange={(e) => setVelocidad(parseFloat(e.target.value))} />
+          </label>
+          <label>
+            Tiempo total de simulación (s)
+            <Input type="number" value={tiempoMax} onChange={(e) => setTiempoMax(parseFloat(e.target.value))} />
+          </label>
+          <Button onClick={simular}>Simular</Button>
+        </CardContent>
+      </Card>
+
+      {grafico && (
+        <Card>
+          <CardContent className="p-4">
+            <Line data={grafico} />
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
